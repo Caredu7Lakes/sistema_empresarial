@@ -1,0 +1,72 @@
+# ==========================================
+# Compilação e Build (Além do bin/ e *.class)
+# ==========================================
+*.jar
+*.war
+*.ear
+*.nar
+*.rar
+
+# ==========================================
+# Ferramentas de Build (Maven / Gradle)
+# ==========================================
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.next
+pom.xml.ancestorv2
+release.properties
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar # Garante que o wrapper seja versionado
+
+# ==========================================
+# IDEs e Editores (Além do .vscode/)
+# ==========================================
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.metadata/
+.classpath
+.project
+.settings/
+*.factorypath
+
+# NetBeans
+nbproject/private/
+build/
+nbbuild/
+dist/
+
+# ==========================================
+# Logs e Cobertura de Testes
+# ==========================================
+*.log
+*.sqlite
+.bash_history
+hs_err_pid*
+replay_pid*
+
+# Jacoco / Cobertura
+*.exec
+*.ec
+.coverage/
+
+# ==========================================
+# Arquivos de Sistema Operacional
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
