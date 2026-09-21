@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.sistemaempresarial.bootstrap.ContextoAplicacao;
 import com.sistemaempresarial.marketing.service.ProcessadorEntrega;
+import com.sistemaempresarial.marketing.service.PoliticaSupressaoSes;
 
 /**
  * Handler de BOUNCE / RECLAMAÇÃO.
@@ -53,32 +54,28 @@ public class BounceHandler implements RequestHandler<SNSEvent, Void> {
         String tipo = raiz.path("notificationType").asText("");
         ProcessadorEntrega processador = CTX.processadorEntrega();
 
-        switch (tipo) {
-            case "Bounce" -> {
-                JsonNode bounce = raiz.path("bounce");
-                // Só suprime bounce PERMANENTE (endereço inexistente).
-                // Transient (caixa cheia, etc.) é temporário -> não suprime, pode reenviar.
-                if ("Permanent".equals(bounce.path("bounceType").asText())) {
+        if ("Bounce".equals(tipo)) {
+            JsonNode bounce = raiz.path("bounce");
+            // A política decide se este bounce deve suprimir (só permanente).
+            PoliticaSupressaoSes.decidir("Bounce", bounce.path("bounceType").asText(""))
+                .ifPresent(evento -> {
                     for (JsonNode r : bounce.path("bouncedRecipients")) {
                         String email = r.path("emailAddress").asText(null);
-                        if (email != null) {
-                            processador.processar(email, ProcessadorEntrega.Evento.BOUNCE, "SES bounce permanente");
-                        }
+                        if (email != null) processador.processar(email, evento, "SES bounce permanente");
                     }
-                }
-            }
-            case "Complaint" -> {
-                // Reclamação de spam -> suprime sempre (protege a reputação do remetente).
-                for (JsonNode r : raiz.path("complaint").path("complainedRecipients")) {
-                    String email = r.path("emailAddress").asText(null);
-                    if (email != null) {
-                        processador.processar(email, ProcessadorEntrega.Evento.RECLAMACAO, "SES reclamacao");
+                });
+
+        } else if ("Complaint".equals(tipo)) {
+            PoliticaSupressaoSes.decidir("Complaint", "")
+                .ifPresent(evento -> {
+                    for (JsonNode r : raiz.path("complaint").path("complainedRecipients")) {
+                        String email = r.path("emailAddress").asText(null);
+                        if (email != null) processador.processar(email, evento, "SES reclamacao");
                     }
-                }
-            }
-            default ->
-                // Delivery e outros tipos não exigem ação aqui.
-                ctx.getLogger().log("Notificacao SES ignorada (tipo=" + tipo + ")");
+                });
+
+        } else {
+            ctx.getLogger().log("Notificacao SES ignorada (tipo=" + tipo + ")");
         }
     }
 }
