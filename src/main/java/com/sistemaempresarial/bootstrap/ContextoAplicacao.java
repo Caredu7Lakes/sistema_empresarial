@@ -2,19 +2,21 @@ package com.sistemaempresarial.bootstrap;
 
 import java.time.Clock;
 import java.time.ZoneId;
+import java.net.http.HttpClient;
 import javax.sql.DataSource;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.sesv2.SesV2Client;
 
 import com.sistemaempresarial.marketing.adapter.ListaSupressaoDynamo;
 import com.sistemaempresarial.marketing.adapter.RepositorioEnviosDynamo;
-import com.sistemaempresarial.marketing.adapter.ServicoEmail;
+import com.sistemaempresarial.marketing.adapter.ServicoEmailSes;
 import com.sistemaempresarial.marketing.adapter.ServicoRedesSociais;
 import com.sistemaempresarial.marketing.adapter.ServicoSms;
-import com.sistemaempresarial.marketing.adapter.ServicoWhatsApp;
+import com.sistemaempresarial.marketing.adapter.ServicoWhatsAppMeta;
 import com.sistemaempresarial.marketing.port.ListaSupressao;
 import com.sistemaempresarial.marketing.port.RepositorioEnvios;
 import com.sistemaempresarial.marketing.service.DisparadorMarketing;
@@ -36,6 +38,7 @@ public final class ContextoAplicacao implements AutoCloseable {
 
     private final HikariDataSource dataSource;
     private final DynamoDbClient dynamo;
+    private final SesV2Client ses;
 
     private final DisparadorMarketing disparador;
     private final ProcessadorEntrega processadorEntrega;
@@ -49,6 +52,10 @@ public final class ContextoAplicacao implements AutoCloseable {
         this.dynamo = DynamoDbClient.builder()
                 .region(Region.of(obrig("DYNAMO_REGION")))
                 .build();
+        this.ses = SesV2Client.builder()
+                .region(Region.of(env("SES_REGION", obrig("DYNAMO_REGION"))))
+                .build();
+        HttpClient http = HttpClient.newHttpClient();
 
         // ----- Adapters de produção -----
         CatalogoProdutos catalogo = new CatalogoProdutosJdbc(dataSource);
@@ -60,9 +67,14 @@ public final class ContextoAplicacao implements AutoCloseable {
         // ----- Núcleo (portas injetadas) -----
         this.disparador = new DisparadorMarketing(repositorio, supressao, Clock.system(zona))
                 .registrar(new ServicoSms())
-                .registrar(new ServicoEmail())
+                .registrar(new ServicoEmailSes(ses, obrig("SES_REMETENTE"), env("SES_ASSUNTO", "Novidades")))
                 .registrar(new ServicoRedesSociais())
-                .registrar(new ServicoWhatsApp());
+                .registrar(new ServicoWhatsAppMeta(http,
+                        env("META_BASE_URL", "https://graph.facebook.com/v21.0"),
+                        obrig("META_PHONE_NUMBER_ID"),
+                        obrig("META_ACCESS_TOKEN"),
+                        obrig("META_TEMPLATE"),
+                        env("META_IDIOMA", "pt_BR")));
         this.processadorEntrega = new ProcessadorEntrega(supressao);
         this.caixa = new Caixa(new LeitorCodigoBarras(catalogo));
     }
@@ -85,6 +97,7 @@ public final class ContextoAplicacao implements AutoCloseable {
     @Override public void close() {
         if (dataSource != null) dataSource.close();
         if (dynamo != null) dynamo.close();
+        if (ses != null) ses.close();
     }
 
     // ----- helpers de configuração -----
