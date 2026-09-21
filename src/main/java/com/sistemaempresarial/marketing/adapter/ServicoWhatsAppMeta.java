@@ -19,21 +19,21 @@ import com.sistemaempresarial.marketing.port.ServicoMensagem;
 /**
  * Adapter REAL de WhatsApp via Meta Cloud API (Graph API).
  *
- * Diferente de SES/SNS, a Meta nÃ£o tem SDK AWS â€” Ã© REST HTTPS. Usamos o
- * HttpClient do JDK (sem dependÃªncia extra) e Jackson para o JSON.
+ * Diferente de SES/SNS, a Meta nÃƒÂ£o tem SDK AWS Ã¢â‚¬â€ ÃƒÂ© REST HTTPS. Usamos o
+ * HttpClient do JDK (sem dependÃƒÂªncia extra) e Jackson para o JSON.
  *
  * IMPORTANTE (regra da Meta): para INICIAR conversa (marketing/outbound) fora da
- * janela de 24h, sÃ³ Ã© permitido enviar mensagem de TEMPLATE previamente aprovado.
- * Texto livre sÃ³ funciona dentro da janela de atendimento. Por isso enviamos um
- * template com UMA variÃ¡vel de corpo ({{1}}), preenchida com Mensagem.conteudo().
+ * janela de 24h, sÃƒÂ³ ÃƒÂ© permitido enviar mensagem de TEMPLATE previamente aprovado.
+ * Texto livre sÃƒÂ³ funciona dentro da janela de atendimento. Por isso enviamos um
+ * template com UMA variÃƒÂ¡vel de corpo ({{1}}), preenchida com Mensagem.conteudo().
  *
- * DependÃªncias injetadas (composition root):
+ * DependÃƒÂªncias injetadas (composition root):
  *   - http:          HttpClient compartilhado.
  *   - baseUrl:       ex. https://graph.facebook.com/v21.0
- *   - phoneNumberId: ID do nÃºmero emissor (do WhatsApp Business).
+ *   - phoneNumberId: ID do nÃƒÂºmero emissor (do WhatsApp Business).
  *   - accessToken:   token do system user (SEGREDO -> Secrets Manager).
  *   - template:      nome do template aprovado (com um {{1}} no corpo).
- *   - idioma:        cÃ³digo de idioma do template, ex. pt_BR.
+ *   - idioma:        cÃƒÂ³digo de idioma do template, ex. pt_BR.
  */
 public class ServicoWhatsAppMeta implements ServicoMensagem {
 
@@ -71,30 +71,30 @@ public class ServicoWhatsAppMeta implements ServicoMensagem {
             int status = resp.statusCode();
 
             if (status / 100 == 2) {
-                // 2xx: aceite sÃ­ncrono. Extrai o wamid (id da mensagem na Meta).
+                // 2xx: aceite sÃƒÂ­ncrono. Extrai o wamid (id da mensagem na Meta).
                 JsonNode raiz = JSON.readTree(resp.body());
                 String id = raiz.path("messages").path(0).path("id").asText(null);
                 return ResultadoEnvio.aceito(canal(), id);
             }
 
             if (status >= 400 && status < 500) {
-                // 4xx: erro definitivo (nÃºmero invÃ¡lido, template errado, token). NÃ£o faz retry.
+                // 4xx: erro definitivo (nÃƒÂºmero invÃƒÂ¡lido, template errado, token). NÃƒÂ£o faz retry.
                 return ResultadoEnvio.de(canal(), StatusEnvio.REJEITADO, resumoErro(resp.body(), status));
             }
 
-            // 5xx: indisponibilidade da Meta -> transitÃ³rio -> retry (Disparador libera a reserva).
+            // 5xx: indisponibilidade da Meta -> transitÃƒÂ³rio -> retry (Disparador libera a reserva).
             throw new RuntimeException("Meta indisponivel (HTTP " + status + ")");
 
         } catch (java.io.IOException e) {
-            // Falha de rede/timeout -> transitÃ³rio.
+            // Falha de rede/timeout -> transitÃƒÂ³rio.
             throw new RuntimeException("Falha de rede no WhatsApp/Meta", e);
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt(); // boa prÃ¡tica: restaura o flag de interrupÃ§Ã£o
+            Thread.currentThread().interrupt(); // boa prÃƒÂ¡tica: restaura o flag de interrupÃƒÂ§ÃƒÂ£o
             throw new RuntimeException("Envio WhatsApp interrompido", e);
         }
     }
 
-    /** Monta o JSON de mensagem de template com uma variÃ¡vel de corpo. */
+    /** Monta o JSON de mensagem de template com uma variÃƒÂ¡vel de corpo. */
     private String montarPayload(Mensagem mensagem) {
         ObjectNode raiz = JSON.createObjectNode();
         raiz.put("messaging_product", "whatsapp");
@@ -113,7 +113,7 @@ public class ServicoWhatsAppMeta implements ServicoMensagem {
         param.put("type", "text");
         param.put("text", mensagem.conteudo());
 
-        return JSON.writeValueAsString(raiz);
+        return raiz.toString();
     }
 
     private String resumoErro(String corpo, int status) {

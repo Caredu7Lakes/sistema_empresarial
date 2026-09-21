@@ -68,6 +68,11 @@
       <artifactId>sesv2</artifactId>
       <version>2.28.29</version>
     </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sns</artifactId>
+      <version>2.28.29</version>
+    </dependency>
   </dependencies>
 
   <build>

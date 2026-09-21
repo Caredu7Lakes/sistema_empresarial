@@ -10,12 +10,13 @@ import com.zaxxer.hikari.HikariDataSource;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.sesv2.SesV2Client;
+import software.amazon.awssdk.services.sns.SnsClient;
 
 import com.sistemaempresarial.marketing.adapter.ListaSupressaoDynamo;
 import com.sistemaempresarial.marketing.adapter.RepositorioEnviosDynamo;
 import com.sistemaempresarial.marketing.adapter.ServicoEmailSes;
 import com.sistemaempresarial.marketing.adapter.ServicoRedesSociais;
-import com.sistemaempresarial.marketing.adapter.ServicoSms;
+import com.sistemaempresarial.marketing.adapter.ServicoSmsSns;
 import com.sistemaempresarial.marketing.adapter.ServicoWhatsAppMeta;
 import com.sistemaempresarial.marketing.port.ListaSupressao;
 import com.sistemaempresarial.marketing.port.RepositorioEnvios;
@@ -39,6 +40,7 @@ public final class ContextoAplicacao implements AutoCloseable {
     private final HikariDataSource dataSource;
     private final DynamoDbClient dynamo;
     private final SesV2Client ses;
+    private final SnsClient sns;
 
     private final DisparadorMarketing disparador;
     private final ProcessadorEntrega processadorEntrega;
@@ -55,6 +57,9 @@ public final class ContextoAplicacao implements AutoCloseable {
         this.ses = SesV2Client.builder()
                 .region(Region.of(env("SES_REGION", obrig("DYNAMO_REGION"))))
                 .build();
+        this.sns = SnsClient.builder()
+                .region(Region.of(env("SNS_REGION", obrig("DYNAMO_REGION"))))
+                .build();
         HttpClient http = HttpClient.newHttpClient();
 
         // ----- Adapters de produção -----
@@ -66,7 +71,7 @@ public final class ContextoAplicacao implements AutoCloseable {
 
         // ----- Núcleo (portas injetadas) -----
         this.disparador = new DisparadorMarketing(repositorio, supressao, Clock.system(zona))
-                .registrar(new ServicoSms())
+                .registrar(new ServicoSmsSns(sns))
                 .registrar(new ServicoEmailSes(ses, obrig("SES_REMETENTE"), env("SES_ASSUNTO", "Novidades")))
                 .registrar(new ServicoRedesSociais())
                 .registrar(new ServicoWhatsAppMeta(http,
@@ -98,6 +103,7 @@ public final class ContextoAplicacao implements AutoCloseable {
         if (dataSource != null) dataSource.close();
         if (dynamo != null) dynamo.close();
         if (ses != null) ses.close();
+        if (sns != null) sns.close();
     }
 
     // ----- helpers de configuração -----
