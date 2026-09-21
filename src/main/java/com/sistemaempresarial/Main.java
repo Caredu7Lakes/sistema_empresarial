@@ -11,6 +11,7 @@ import com.sistemaempresarial.marketing.service.*;
 import com.sistemaempresarial.marketing.adapter.*;
 import com.sistemaempresarial.vendas.model.*;
 import com.sistemaempresarial.vendas.service.*;
+import com.sistemaempresarial.vendas.adapter.*;
 
 /**
  * Demonstração de ponta a ponta (fio condutor). Em produção, os adaptadores
@@ -53,7 +54,7 @@ public class Main {
         catalogo.put("789100000003",
             new Produto("789100000003", "Livro", new BigDecimal("45.00"), TipoProduto.CULTURA, -0.010));
 
-        Caixa caixa = new Caixa(new LeitorCodigoBarras(catalogo));
+        Caixa caixa = new Caixa(new LeitorCodigoBarras(new CatalogoProdutosMemoria(catalogo)));
         caixa.adicionarPorCodigo("789100000001");
         caixa.adicionarPorCodigo("789100000002");
         caixa.adicionarPorCodigo("789100000003");
